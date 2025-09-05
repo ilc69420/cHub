@@ -10,7 +10,7 @@ class ProxyDB:
         base_dir.mkdir(parents=True, exist_ok=True)  # ensure folder exists
         self.dbname = base_dir / "proxies.db"
 
-    async def setUpTables(self) -> Exception | None:
+    async def setup_tables(self) -> Exception | None:
         try:
             async with aiosqlite.connect(self.dbname) as db:
                 await db.execute("""
