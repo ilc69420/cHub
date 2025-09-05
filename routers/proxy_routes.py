@@ -21,3 +21,4 @@ async def insert_proxies(proxies: list[proxyModel]):
     if err != None:
         raise HTTPException(status_code=500, detail='Could not insert proxies into the DB')
     return {'messagg':'Inserted proxies into DB'}
+
