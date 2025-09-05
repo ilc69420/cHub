@@ -32,12 +32,15 @@ class Pokemon_DB:
                         card_set TEXT,
                         price INTEGER,
                         shipping INTEGER,
-                        seller TEXT
+                        seller TEXT,
+                        UNIQUE(name, number, card_set, price, shipping, seller)
                     )
                 """)
                 await db.commit()   # <-- missing before!
             except Exception as e:
                 print(f"ERROR: {e}")
+        
+        print("DEBUG: Tables setup")
     
     async def insert_into_pokemon_que(self, cards: list[Pokemon_Que_Item]):
         print(f"Inserting {len(cards)} items into pokemon_que")
@@ -47,6 +50,8 @@ class Pokemon_DB:
                 VALUES (?,?,?)
             """, [(c.name, c.number, c.card_set) for c in cards])
             await db.commit()
+        
+        print("DEBUG: Inserted into pokemon_que")
     
     async def fetch_que(self) -> list[Pokemon_Que_Item]:
         print("Fetching from pokemon_que")
@@ -55,7 +60,14 @@ class Pokemon_DB:
                 'SELECT name, number, card_set FROM pokemon_que WHERE checked = 0 LIMIT 1'
             ) as cursor:
                 row = await cursor.fetchone()
-
+            
+            if row:
+                await db.execute(
+                    'UPDATE pokemon_que SET checked = 1 WHERE name = ? AND number = ? AND card_set = ?',
+                    (row[0], row[1], row[2])
+                )
+                await db.commit()
+        
         if row:
             que_item = Pokemon_Que_Item(
                 name=row[0],
@@ -68,11 +80,12 @@ class Pokemon_DB:
         print("No item found")
         return []
     
-    async def insert_into_scraped_table(self, data: Pokemon_Scraped_Data):
-        print("Inserting 1 item into scraped table")
+    async def insert_into_scraped_table(self, data: list[Pokemon_Scraped_Data]):
+        print(f"Inserting {len(data)} items into scraped table")
         async with aiosqlite.connect(self.dbname) as db:
-            await db.execute("""
+            await db.executemany("""
                 INSERT INTO pokemon_scraped_data (name, number, card_set, price, shipping, seller)
                 VALUES (?,?,?,?,?,?)
-            """, (data.name, data.number, data.card_set, data.price, data.shipping, data.seller))
+            """, [(d.name, d.number, d.card_set, d.price, d.shipping, d.seller) for d in data])
             await db.commit()
+        print("DEBUG: Inserted into scraped table")
