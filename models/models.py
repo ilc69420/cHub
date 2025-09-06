@@ -13,5 +13,4 @@ class Pokemon_Scraped_Data(BaseModel):
     number: str
     card_set: str
     price: int
-    shipping: int
     seller: str

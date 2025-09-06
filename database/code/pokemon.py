@@ -31,12 +31,11 @@ class Pokemon_DB:
                         number TEXT,
                         card_set TEXT,
                         price INTEGER,
-                        shipping INTEGER,
                         seller TEXT,
-                        UNIQUE(name, number, card_set, price, shipping, seller)
+                        UNIQUE(name, number, card_set, price, seller)
                     )
                 """)
-                await db.commit()   # <-- missing before!
+                await db.commit()
             except Exception as e:
                 print(f"ERROR: {e}")
         
@@ -53,39 +52,48 @@ class Pokemon_DB:
         
         print("DEBUG: Inserted into pokemon_que")
     
-    async def fetch_que(self) -> list[Pokemon_Que_Item]:
+    async def fetch_que(self) -> Pokemon_Que_Item | None:
         print("Fetching from pokemon_que")
         async with aiosqlite.connect(self.dbname) as db:
             async with db.execute(
                 'SELECT name, number, card_set FROM pokemon_que WHERE checked = 0 LIMIT 1'
             ) as cursor:
                 row = await cursor.fetchone()
-            
-            if row:
-                await db.execute(
-                    'UPDATE pokemon_que SET checked = 1 WHERE name = ? AND number = ? AND card_set = ?',
-                    (row[0], row[1], row[2])
-                )
-                await db.commit()
-        
-        if row:
-            que_item = Pokemon_Que_Item(
-                name=row[0],
-                number=row[1],
-                card_set=row[2]
-            )
-            print(f"Fetched {que_item}")
-            return [que_item]
 
-        print("No item found")
-        return []
-    
+            # reset queue if empty
+            if row is None:
+                await db.execute('UPDATE pokemon_que SET checked = 0')
+                await db.commit()
+                async with db.execute(
+                    'SELECT name, number, card_set FROM pokemon_que WHERE checked = 0 LIMIT 1'
+                ) as cursor:
+                    row = await cursor.fetchone()
+                
+                if row is None:
+                    # table is empty
+                    return None
+
+            # mark as checked
+            await db.execute(
+                'UPDATE pokemon_que SET checked = 1 WHERE name = ? AND number = ? AND card_set = ?',
+                (row[0], row[1], row[2])
+            )
+            await db.commit()
+
+            que_item = Pokemon_Que_Item(name=row[0], number=row[1], card_set=row[2])
+            print(f"Fetched {que_item}")
+            return que_item
+
+
+
     async def insert_into_scraped_table(self, data: list[Pokemon_Scraped_Data]):
         print(f"Inserting {len(data)} items into scraped table")
         async with aiosqlite.connect(self.dbname) as db:
             await db.executemany("""
-                INSERT INTO pokemon_scraped_data (name, number, card_set, price, shipping, seller)
-                VALUES (?,?,?,?,?,?)
-            """, [(d.name, d.number, d.card_set, d.price, d.shipping, d.seller) for d in data])
+                INSERT OR IGNORE INTO pokemon_scraped_data (name, number, card_set, price, seller)
+                VALUES (?,?,?,?,?)
+            """, [(d.name, d.number, d.card_set, d.price, d.seller) for d in data])
             await db.commit()
         print("DEBUG: Inserted into scraped table")
+
+
