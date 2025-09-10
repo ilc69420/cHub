@@ -27,19 +27,25 @@ class ProxyDB:
     async def get_proxies(self) -> list[str]:
         proxies = []
         async with aiosqlite.connect(self.dbname) as db:
-            async with db.execute("SELECT proxy FROM proxies ORDER BY checked ASC LIMIT 5") as cursor:
+            async with db.execute("SELECT proxy FROM proxies ORDER BY checked ASC LIMIT 20") as cursor:
                 rows = await cursor.fetchall()
                 for row in rows:
                     proxies.append(row[0])
+                    await db.execute("UPDATE proxies SET checked = checked + 1 WHERE proxy = ?", (row[0],))
+            await db.commit()
         return proxies
 
     async def insert_proxies(self, proxies: list[proxyModel]) -> Exception | None:
         try:
             async with aiosqlite.connect(self.dbname) as db:
+                await db.execute('DELETE FROM proxies')
+                await db.commit()
+
                 await db.executemany(
                     "INSERT OR IGNORE INTO proxies (proxy) VALUES (?)",
                     [(p.proxy,) for p in proxies]
                 )
+                
                 await db.commit()
             return None
         except Exception as e:

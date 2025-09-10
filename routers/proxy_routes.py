@@ -11,7 +11,7 @@ proxy_router = APIRouter(
 
 proxyDB = ProxyDB()
 
-@proxy_router.get("/get-proxies")
+@proxy_router.get("/fetch-proxies")
 async def get_proxies():
     return await proxyDB.get_proxies()
 
